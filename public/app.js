@@ -1,6 +1,6 @@
 // ===== FIREBASE CONFIG =====
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, query, orderBy, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAeN5W-UFQiJ07LHwb8pVRv3et3Hlomh68",
@@ -14,6 +14,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// ===== ADMIN PASSWORD =====
+const ADMIN_PASSWORD = "licoa2025";
+let isAdmin = false;
+
 // ===== STATE =====
 const SELLERS = ['Licoa', 'Rolando', 'Marian', 'Otro'];
 let allSales = [];
@@ -23,10 +27,70 @@ let charts = {};
 // ===== INIT =====
 document.addEventListener('DOMContentLoaded', async () => {
   populateMonthFilter();
-  loadGoalsFromStorage();
+  await loadGoalsFromFirestore();
   await loadSales();
   bindEvents();
+  setupAdminUI();
 });
+
+// ===== ADMIN =====
+function setupAdminUI() {
+  const goalsSection = document.querySelector('.goals-section');
+  
+  // Insertar botón de login admin y lock al inicio de la sección
+  const lockBar = document.createElement('div');
+  lockBar.id = 'adminLockBar';
+  lockBar.style.cssText = `
+    display:flex; align-items:center; gap:12px; margin-bottom:14px;
+    font-size:0.5rem; color:var(--pixel-gray);
+  `;
+  lockBar.innerHTML = `
+    <span id="adminStatus">🔒 SOLO ADMIN PUEDE EDITAR METAS</span>
+    <button class="pixel-btn" id="adminLoginBtn" style="background:var(--pixel-blue);color:var(--pixel-cyan);border-color:var(--pixel-cyan);font-size:0.4rem;padding:6px 10px;">
+      🔑 ENTRAR COMO ADMIN
+    </button>
+  `;
+  goalsSection.insertBefore(lockBar, goalsSection.querySelector('.goals-grid'));
+
+  // Deshabilitar inputs por defecto
+  setGoalsEditable(false);
+
+  document.getElementById('adminLoginBtn').addEventListener('click', () => {
+    if (isAdmin) {
+      // Logout
+      isAdmin = false;
+      setGoalsEditable(false);
+      document.getElementById('adminStatus').textContent = '🔒 SOLO ADMIN PUEDE EDITAR METAS';
+      document.getElementById('adminLoginBtn').textContent = '🔑 ENTRAR COMO ADMIN';
+      showToast('🔒 SESIÓN CERRADA');
+    } else {
+      const pass = prompt('🔑 Contraseña de administrador:');
+      if (pass === ADMIN_PASSWORD) {
+        isAdmin = true;
+        setGoalsEditable(true);
+        document.getElementById('adminStatus').textContent = '✅ MODO ADMIN ACTIVO';
+        document.getElementById('adminLoginBtn').textContent = '🔓 CERRAR SESIÓN';
+        showToast('✅ BIENVENIDA ADMIN');
+      } else if (pass !== null) {
+        showToast('❌ CONTRASEÑA INCORRECTA', true);
+      }
+    }
+  });
+}
+
+function setGoalsEditable(enabled) {
+  document.querySelectorAll('.goal-input, #teamGoalInput').forEach(inp => {
+    inp.disabled = !enabled;
+    inp.style.opacity = enabled ? '1' : '0.4';
+    inp.style.cursor = enabled ? 'text' : 'not-allowed';
+  });
+  const saveBtn = document.getElementById('saveGoalsBtn');
+  if (saveBtn) {
+    saveBtn.disabled = !enabled;
+    saveBtn.style.opacity = enabled ? '1' : '0.4';
+    saveBtn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+  }
+}
 
 // ===== MONTH FILTER =====
 function populateMonthFilter() {
@@ -46,29 +110,38 @@ function getCurrentMonth() {
   return document.getElementById('filterMonth').value;
 }
 
-// ===== GOALS =====
-function loadGoalsFromStorage() {
-  const saved = localStorage.getItem('salesRaceGoals');
-  if (saved) {
-    goals = JSON.parse(saved);
-    SELLERS.forEach(s => {
-      const inp = document.querySelector(`.goal-input[data-seller="${s}"]`);
-      if (inp && goals[s]) inp.value = goals[s];
-    });
-    const teamInp = document.getElementById('teamGoalInput');
-    if (teamInp && goals.team) teamInp.value = goals.team;
+// ===== GOALS — FIRESTORE =====
+async function loadGoalsFromFirestore() {
+  try {
+    const snap = await getDoc(doc(db, 'config', 'goals'));
+    if (snap.exists()) {
+      goals = snap.data();
+      SELLERS.forEach(s => {
+        const inp = document.querySelector(`.goal-input[data-seller="${s}"]`);
+        if (inp && goals[s]) inp.value = goals[s];
+      });
+      const teamInp = document.getElementById('teamGoalInput');
+      if (teamInp && goals.team) teamInp.value = goals.team;
+    }
+  } catch(e) {
+    console.error('Error cargando metas:', e);
   }
 }
 
-function saveGoals() {
+async function saveGoals() {
+  if (!isAdmin) { showToast('🔒 NECESITAS SER ADMIN', true); return; }
   SELLERS.forEach(s => {
     const inp = document.querySelector(`.goal-input[data-seller="${s}"]`);
     goals[s] = parseFloat(inp?.value) || 0;
   });
   goals.team = parseFloat(document.getElementById('teamGoalInput').value) || 0;
-  localStorage.setItem('salesRaceGoals', JSON.stringify(goals));
-  updateRaceTrack();
-  showToast('✅ METAS GUARDADAS');
+  try {
+    await setDoc(doc(db, 'config', 'goals'), goals);
+    updateRaceTrack();
+    showToast('✅ METAS GUARDADAS EN LA NUBE');
+  } catch(e) {
+    showToast('❌ ERROR GUARDANDO METAS', true);
+  }
 }
 
 // ===== FIREBASE CRUD =====
@@ -112,7 +185,6 @@ function getFilteredSales() {
   const month = getCurrentMonth();
   const seller = document.getElementById('filterSeller').value;
   const type = document.getElementById('filterType').value;
-
   return allSales.filter(s => {
     const sMonth = s.date ? s.date.substring(0,7) : '';
     return (!month || sMonth === month) &&
@@ -167,7 +239,6 @@ function renderTable(sales) {
   ).join(' | ');
   html += ` <strong style="color:var(--pixel-yellow)"> | TOTAL: $${grand.toLocaleString('es',{minimumFractionDigits:2})}</strong>`;
   totalsDiv.innerHTML = html;
-
   document.getElementById('tableSummary').textContent = `${sales.length} REGISTROS ENCONTRADOS`;
 }
 
@@ -177,7 +248,7 @@ function formatDate(d) {
   return `${day}/${m}/${y}`;
 }
 
-// ===== RACE TRACK =====
+// ===== RACE TRACK — CORREGIDO =====
 function updateRaceTrack() {
   const month = getCurrentMonth();
   const monthSales = allSales.filter(s => s.date && s.date.substring(0,7) === month);
@@ -187,10 +258,12 @@ function updateRaceTrack() {
   monthSales.forEach(s => totals[s.seller] = (totals[s.seller]||0) + Number(s.amount));
 
   let teamTotal = 0;
+
   SELLERS.forEach(seller => {
     const goal = goals[seller] || 1;
     const amount = totals[seller] || 0;
-    const pct = Math.min((amount / goal) * 100, 100);
+    // Clamp entre 0 y 100
+    const pct = Math.min(Math.max((amount / goal) * 100, 0), 100);
     teamTotal += amount;
 
     const car = document.getElementById(`car-${seller}`);
@@ -199,9 +272,16 @@ function updateRaceTrack() {
 
     if (car) {
       const road = car.parentElement;
-      const maxLeft = road.offsetWidth - 50;
-      const leftPx = (pct / 100) * maxLeft;
+      // La pista tiene bandera al final (derecha). 
+      // El carro ocupa ~45px. El margen derecho reservado para la bandera es ~30px.
+      const trackWidth = road.offsetWidth;
+      const carWidth = 45;
+      const flagSpace = 30;
+      const usableWidth = trackWidth - carWidth - flagSpace;
+      // Posición: 0% = inicio (izquierda), 100% = meta (derecha)
+      const leftPx = Math.max(0, (pct / 100) * usableWidth);
       car.style.left = leftPx + 'px';
+
       if (pct >= 100) car.classList.add('car-celebrate');
       else car.classList.remove('car-celebrate');
     }
@@ -209,8 +289,9 @@ function updateRaceTrack() {
     if (pctEl) pctEl.textContent = `${Math.round(pct)}%`;
   });
 
+  // Team bar
   const teamGoal = goals.team || 1;
-  const teamPct = Math.min((teamTotal / teamGoal) * 100, 100);
+  const teamPct = Math.min(Math.max((teamTotal / teamGoal) * 100, 0), 100);
   const bar = document.getElementById('teamBar');
   const barLabel = document.getElementById('teamBarLabel');
   const teamTotalEl = document.getElementById('teamTotal');
@@ -234,11 +315,9 @@ function updateCharts(sales) {
   });
 
   const palette = ['#e94560','#00d4ff','#f5a623','#00ff88','#9b59b6','#ff6b35','#1abc9c','#e74c3c','#3498db'];
-
   renderChart('chartCount', 'bar', Object.keys(typeMap), Object.values(typeMap), palette, 'Cantidad');
   renderChart('chartAmount', 'doughnut', Object.keys(typeAmtMap),
     Object.values(typeAmtMap).map(v => Math.round(v)), palette, 'Monto $');
-
   const sLabels = SELLERS.filter(s => sellerAmtMap[s]);
   const sColors = ['#ff3333','#3399ff','#33ff99','#ffdd00'];
   renderChart('chartSeller', 'bar', sLabels,
@@ -248,9 +327,7 @@ function updateCharts(sales) {
 function renderChart(id, type, labels, data, colors, label) {
   const ctx = document.getElementById(id);
   if (!ctx) return;
-
   if (charts[id]) charts[id].destroy();
-
   charts[id] = new Chart(ctx, {
     type,
     data: {
@@ -266,18 +343,11 @@ function renderChart(id, type, labels, data, colors, label) {
     options: {
       responsive: true,
       plugins: {
-        legend: {
-          labels: {
-            color: '#e8e8e8',
-            font: { family: 'VT323', size: 14 }
-          }
-        },
+        legend: { labels: { color: '#e8e8e8', font: { family: 'VT323', size: 14 } } },
         tooltip: {
           titleFont: { family: 'Press Start 2P', size: 9 },
           bodyFont: { family: 'VT323', size: 14 },
-          callbacks: {
-            label: ctx => ` ${ctx.formattedValue}${label.includes('$') ? ' USD' : ' ventas'}`
-          }
+          callbacks: { label: ctx => ` ${ctx.formattedValue}${label.includes('$') ? ' USD' : ' ventas'}` }
         }
       },
       scales: type === 'bar' ? {
@@ -305,7 +375,6 @@ window.deleteSale = deleteSale;
 // ===== EVENTS =====
 function bindEvents() {
   document.getElementById('saveGoalsBtn').addEventListener('click', saveGoals);
-
   document.getElementById('filterMonth').addEventListener('change', renderAll);
   document.getElementById('filterSeller').addEventListener('change', () => renderTable(getFilteredSales()));
   document.getElementById('filterType').addEventListener('change', () => renderTable(getFilteredSales()));
@@ -320,11 +389,9 @@ function bindEvents() {
     const type = document.getElementById('saleType').value;
     const seller = document.getElementById('saleSeller').value;
     const amount = parseFloat(document.getElementById('saleAmount').value);
-
     if (!date || !type || !seller || isNaN(amount) || amount <= 0) {
       showToast('⚠️ COMPLETA TODOS LOS CAMPOS', true); return;
     }
-
     await addSale({ date, type, seller, amount });
     document.getElementById('saleDate').value = '';
     document.getElementById('saleType').value = '';
