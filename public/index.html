@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>🏎️ Sales Race Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="game-header">
+  <div class="header-title">
+    <span class="pixel-icon">🏁</span>
+    <h1>SALES RACE</h1>
+    <span class="pixel-icon">🏁</span>
+  </div>
+  <div class="month-selector-wrap">
+    <label>PERIODO:</label>
+    <select id="filterMonth" class="pixel-select"></select>
+  </div>
+</header>
+
+<!-- METAS CONFIG -->
+<section class="section goals-section">
+  <h2 class="section-title">⚙️ CONFIGURAR METAS</h2>
+  <div class="goals-grid">
+    <div class="goal-item" id="goal-Licoa">
+      <label>🔴 LICOA</label>
+      <input type="number" class="pixel-input goal-input" data-seller="Licoa" placeholder="Meta $"/>
+    </div>
+    <div class="goal-item" id="goal-Rolando">
+      <label>🔵 ROLANDO</label>
+      <input type="number" class="pixel-input goal-input" data-seller="Rolando" placeholder="Meta $"/>
+    </div>
+    <div class="goal-item" id="goal-Marian">
+      <label>🟢 MARIAN</label>
+      <input type="number" class="pixel-input goal-input" data-seller="Marian" placeholder="Meta $"/>
+    </div>
+    <div class="goal-item" id="goal-Otro">
+      <label>🟡 OTRO</label>
+      <input type="number" class="pixel-input goal-input" data-seller="Otro" placeholder="Meta $"/>
+    </div>
+    <div class="goal-item goal-team">
+      <label>🏆 META EQUIPO</label>
+      <input type="number" class="pixel-input" id="teamGoalInput" placeholder="Meta grupal $"/>
+    </div>
+  </div>
+  <button class="pixel-btn btn-save-goals" id="saveGoalsBtn">💾 GUARDAR METAS</button>
+</section>
+
+<!-- RACE TRACK -->
+<section class="section race-section">
+  <h2 class="section-title">🏎️ PISTA DE CARRERAS</h2>
+  <div class="race-track" id="raceTrack">
+    <div class="track-marks">
+      <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
+    </div>
+    <div class="lane" id="lane-Licoa">
+      <div class="lane-label">🔴 LICOA</div>
+      <div class="lane-road">
+        <div class="lane-bg-lines"></div>
+        <div class="car" id="car-Licoa" data-seller="Licoa">
+          <div class="car-sprite red-car">🏎️</div>
+          <div class="car-name">LICOA</div>
+        </div>
+        <div class="finish-flag">🏁</div>
+      </div>
+      <div class="lane-stats">
+        <span class="lane-amount" id="amount-Licoa">$0</span>
+        <span class="lane-pct" id="pct-Licoa">0%</span>
+      </div>
+    </div>
+    <div class="lane" id="lane-Rolando">
+      <div class="lane-label">🔵 ROLANDO</div>
+      <div class="lane-road">
+        <div class="lane-bg-lines"></div>
+        <div class="car" id="car-Rolando" data-seller="Rolando">
+          <div class="car-sprite blue-car">🚗</div>
+          <div class="car-name">ROLANDO</div>
+        </div>
+        <div class="finish-flag">🏁</div>
+      </div>
+      <div class="lane-stats">
+        <span class="lane-amount" id="amount-Rolando">$0</span>
+        <span class="lane-pct" id="pct-Rolando">0%</span>
+      </div>
+    </div>
+    <div class="lane" id="lane-Marian">
+      <div class="lane-label">🟢 MARIAN</div>
+      <div class="lane-road">
+        <div class="lane-bg-lines"></div>
+        <div class="car" id="car-Marian" data-seller="Marian">
+          <div class="car-sprite green-car">🚙</div>
+          <div class="car-name">MARIAN</div>
+        </div>
+        <div class="finish-flag">🏁</div>
+      </div>
+      <div class="lane-stats">
+        <span class="lane-amount" id="amount-Marian">$0</span>
+        <span class="lane-pct" id="pct-Marian">0%</span>
+      </div>
+    </div>
+    <div class="lane" id="lane-Otro">
+      <div class="lane-label">🟡 OTRO</div>
+      <div class="lane-road">
+        <div class="lane-bg-lines"></div>
+        <div class="car" id="car-Otro" data-seller="Otro">
+          <div class="car-sprite yellow-car">🚕</div>
+          <div class="car-name">OTRO</div>
+        </div>
+        <div class="finish-flag">🏁</div>
+      </div>
+      <div class="lane-stats">
+        <span class="lane-amount" id="amount-Otro">$0</span>
+        <span class="lane-pct" id="pct-Otro">0%</span>
+      </div>
+    </div>
+
+    <!-- META GRUPAL -->
+    <div class="team-progress-bar-wrap">
+      <div class="team-label">🏆 META EQUIPO</div>
+      <div class="team-bar-outer">
+        <div class="team-bar-inner" id="teamBar"></div>
+        <span class="team-bar-label" id="teamBarLabel">0%</span>
+      </div>
+      <div class="team-totals">
+        <span id="teamTotal">$0</span> / <span id="teamGoalDisplay">$0</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- REGISTRO DE VENTAS -->
+<section class="section sales-section">
+  <h2 class="section-title">💰 REGISTRO DE VENTAS</h2>
+
+  <!-- FORM -->
+  <div class="sale-form pixel-card">
+    <h3>➕ NUEVA VENTA</h3>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>📅 FECHA</label>
+        <input type="date" id="saleDate" class="pixel-input"/>
+      </div>
+      <div class="form-group">
+        <label>🔧 TIPO DE TRABAJO</label>
+        <select id="saleType" class="pixel-select">
+          <option value="">-- Seleccionar --</option>
+          <option>Ventas Alef</option>
+          <option>Venta Maxima</option>
+          <option>Venta Onix</option>
+          <option>Venta Flex</option>
+          <option>Venta Vento</option>
+          <option>Venta Titan</option>
+          <option>Venta VRF</option>
+          <option>Mantenimientos</option>
+          <option>Correctivos</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>👤 VENDEDOR</label>
+        <select id="saleSeller" class="pixel-select">
+          <option value="">-- Seleccionar --</option>
+          <option>Licoa</option>
+          <option>Rolando</option>
+          <option>Marian</option>
+          <option>Otro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>💵 MONTO ($)</label>
+        <input type="number" id="saleAmount" class="pixel-input" placeholder="0.00" step="0.01"/>
+      </div>
+    </div>
+    <button class="pixel-btn btn-add" id="addSaleBtn">⚡ REGISTRAR VENTA</button>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters-bar pixel-card">
+    <h3>🔍 FILTROS</h3>
+    <div class="filters-grid">
+      <div class="form-group">
+        <label>👤 VENDEDOR</label>
+        <select id="filterSeller" class="pixel-select">
+          <option value="">Todos</option>
+          <option>Licoa</option>
+          <option>Rolando</option>
+          <option>Marian</option>
+          <option>Otro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>🔧 TIPO</label>
+        <select id="filterType" class="pixel-select">
+          <option value="">Todos</option>
+          <option>Ventas Alef</option>
+          <option>Venta Maxima</option>
+          <option>Venta Onix</option>
+          <option>Venta Flex</option>
+          <option>Venta Vento</option>
+          <option>Venta Titan</option>
+          <option>Venta VRF</option>
+          <option>Mantenimientos</option>
+          <option>Correctivos</option>
+        </select>
+      </div>
+      <button class="pixel-btn btn-clear" id="clearFiltersBtn">🔄 LIMPIAR</button>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="table-wrap pixel-card">
+    <div class="table-summary" id="tableSummary"></div>
+    <div class="table-scroll">
+      <table class="pixel-table" id="salesTable">
+        <thead>
+          <tr>
+            <th>FECHA</th>
+            <th>TIPO</th>
+            <th>VENDEDOR</th>
+            <th>MONTO</th>
+            <th>ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody id="salesBody"></tbody>
+      </table>
+    </div>
+    <div class="table-totals" id="tableTotals"></div>
+  </div>
+</section>
+
+<!-- DASHBOARD -->
+<section class="section dashboard-section">
+  <h2 class="section-title">📊 DASHBOARD</h2>
+  <div class="charts-grid">
+    <div class="chart-card pixel-card">
+      <h3>🏆 VENTAS POR CANTIDAD</h3>
+      <canvas id="chartCount"></canvas>
+    </div>
+    <div class="chart-card pixel-card">
+      <h3>💰 VENTAS POR MONTO</h3>
+      <canvas id="chartAmount"></canvas>
+    </div>
+    <div class="chart-card pixel-card">
+      <h3>👥 TOTAL POR VENDEDOR</h3>
+      <canvas id="chartSeller"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="editModal" style="display:none">
+  <div class="modal-box pixel-card">
+    <h3>✏️ EDITAR VENTA</h3>
+    <input type="hidden" id="editId"/>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>📅 FECHA</label>
+        <input type="date" id="editDate" class="pixel-input"/>
+      </div>
+      <div class="form-group">
+        <label>🔧 TIPO</label>
+        <select id="editType" class="pixel-select">
+          <option>Ventas Alef</option><option>Venta Maxima</option>
+          <option>Venta Onix</option><option>Venta Flex</option>
+          <option>Venta Vento</option><option>Venta Titan</option>
+          <option>Venta VRF</option><option>Mantenimientos</option>
+          <option>Correctivos</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>👤 VENDEDOR</label>
+        <select id="editSeller" class="pixel-select">
+          <option>Licoa</option><option>Rolando</option>
+          <option>Marian</option><option>Otro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>💵 MONTO</label>
+        <input type="number" id="editAmount" class="pixel-input" step="0.01"/>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="pixel-btn btn-save" id="saveEditBtn">💾 GUARDAR</button>
+      <button class="pixel-btn btn-cancel" id="cancelEditBtn">❌ CANCELAR</button>
+    </div>
+  </div>
+</div>
+
+<footer class="game-footer">
+  <p>🕹️ SALES RACE TRACKER v1.0 — POWERED BY FIREBASE</p>
+</footer>
+
+</body>
+</html>
